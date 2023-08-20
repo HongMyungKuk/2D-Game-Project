@@ -17,6 +17,7 @@ class GDIObject
     ~GDIObject()
     {
         SelectObject(m_hdc, m_hOldPen);
+        SelectObject(m_hdc, m_hOldBrush);
         DeleteObject(m_hPen);
     }
 
@@ -36,7 +37,7 @@ class GDIObject
     void ObjBrush(int type)
     {
         m_hBrush = (HBRUSH)GetStockObject(type);
-        SelectObject(m_hdc, m_hBrush);
+        m_hOldBrush = (HBRUSH)SelectObject(m_hdc, m_hBrush);
     }
 
   public:
@@ -44,4 +45,5 @@ class GDIObject
     HPEN m_hPen = NULL;
     HPEN m_hOldPen = NULL;
     HBRUSH m_hBrush = NULL;
+    HBRUSH m_hOldBrush = NULL;
 };
