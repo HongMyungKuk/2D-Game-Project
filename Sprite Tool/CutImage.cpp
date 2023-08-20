@@ -23,8 +23,6 @@ void CutImage::Initialize(HWND hwnd)
     HBITMAP hOldBitmap = (HBITMAP)SelectObject(m_hdc, m_hBitmap);
     DeleteObject(hOldBitmap);
 
-    
-
     g = new Gdiplus::Graphics(m_hdc);
 
     LoadPNGImage(m_hdc);
@@ -40,47 +38,33 @@ void CutImage::LoadPNGImage(HDC hdc)
     m_pImage = Gdiplus::Image::FromFile(L"kyo.png");
 }
 
-void CutImage::MakeBox()
+RECT CutImage::FindCutPosition(int left, int top, int right, int bottom)
 {
-    FindCutPosition(m_left, m_top, m_right, m_bottom);
+    std::cout << left << std::endl;
+    int newLeft = FindLeftPosition(left, top, right, bottom);
+    int newTop = FindTopPosition(newLeft, top, right, bottom);
+    int newRight = FindRightPosition(newLeft, newTop, right, bottom);
+    int newBottom = FindBottomPosition(newLeft, newTop, newRight, bottom);
 
-    // 드래그중엔 녹색으로 사각형 표시
-    if (m_state == DRAG)
-    {
-        // 녹색 && Hollow 
-        GDIObject gdiPen(m_hdc);
-        gdiPen.ObjPen(PS_SOLID, 2, RGB(0, 255, 0));
-        gdiPen.ObjBrush(HOLLOW_BRUSH);
-        Rectangle(m_hdc, m_left, m_top, m_right, m_bottom);
-    }
-    // 선택 완료 시 하얀색으로 사각형 표시
-    else if (m_state == SELECT)
-    {
-    }
-}
-
-void CutImage::FindCutPosition(int left, int top, int right, int bottom)
-{
-    if (m_left == m_right || m_top == m_bottom)
-        return;
-
-    m_left = FindLeftPosition(left, top, right, bottom);
-    m_top = FindTopPosition(m_left, top, right, bottom);
-    m_right = FindRightPosition(m_left, m_top, right, bottom);
-    m_bottom = FindBottomPosition(m_left, m_top, m_right, bottom);
+    return RECT{newLeft, newTop, newRight, newBottom};
 }
 
 int CutImage::FindLeftPosition(int left, int top, int right, int bottom)
 {
     COLORREF startColor = GetPixel(m_hdc, left, top);
+    std::cout << startColor << std::endl; 
     COLORREF currentColor = 0;
-    for (int j = top; j <= bottom; ++j)
+    for (int i = left; i <= right; ++i)
     {
-        for (int i = left; i <= right; ++i)
+        for (int j = top; j <= bottom; ++j)
         {
             currentColor = GetPixel(m_hdc, i, j);
             if (startColor != currentColor)
+            {
+                std::cout << "color: " << currentColor << std::endl;
+                std::cout << i << std::endl;
                 return i;
+            }
         }
     }
     return 0;
@@ -88,15 +72,64 @@ int CutImage::FindLeftPosition(int left, int top, int right, int bottom)
 
 int CutImage::FindTopPosition(int left, int top, int right, int bottom)
 {
-    return top;
+    COLORREF startColor = GetPixel(m_hdc, left, top);
+    std::cout << startColor << std::endl;
+    COLORREF currentColor = 0;
+    for (int i = top; i <= bottom; ++i)
+    {
+        for (int j = left; j <= right; ++j)
+        {
+            currentColor = GetPixel(m_hdc, j, i);
+            if (startColor != currentColor)
+            {
+                std::cout << "color: " << currentColor << std::endl;
+                std::cout << i << std::endl;
+                return i;
+            }
+        }
+    }
+    return 0;
 }
 
 int CutImage::FindRightPosition(int left, int top, int right, int bottom)
 {
-    return right;
+    COLORREF startColor = GetPixel(m_hdc, right, bottom);
+    std::cout << startColor << std::endl;
+    std::cout << right << std::endl;
+    COLORREF currentColor = 0;
+    for (int i = right; i >= left; --i)
+    {
+        for (int j = top; j <= bottom; ++j)
+        {
+            currentColor = GetPixel(m_hdc, i, j);
+            if (startColor != currentColor)
+            {
+                std::cout << "color: " << currentColor << std::endl;
+                std::cout << i << std::endl;
+                return i;
+            }
+        }
+    }
+    return 0;
 }
 
 int CutImage::FindBottomPosition(int left, int top, int right, int bottom)
 {
-    return bottom;
+    COLORREF startColor = GetPixel(m_hdc, right, bottom);
+    std::cout << startColor << std::endl;
+    COLORREF currentColor = 0;
+    for (int i = bottom; i >= top; --i)
+    {
+        for (int j = right; j >= left; --j)
+        {
+            currentColor = GetPixel(m_hdc, j, i);
+            if (startColor != currentColor)
+            {
+                std::cout << "color: " << currentColor << std::endl;
+                std::cout << i << std::endl;
+                return i;
+            }
+        }
+    }
+    return 0;
 }

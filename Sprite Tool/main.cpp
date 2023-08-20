@@ -3,15 +3,25 @@
 #include <iostream>
 
 #include "CutImage.h"
+#include "GDIObject.h"
 
 using namespace std;
 
+enum BOX_STATE
+{
+    NONE,
+    DRAG,
+    SELECT,
+};
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+void Box(HDC hdc, RECT rect);
 
 CutImage cutImage;
-
-bool g_mouseBtnDown;
-RECT g_rect;
+POINT oldPos;
+POINT newPos;
+RECT box;
+RECT optBox;
 
 int main()
 {
@@ -70,8 +80,7 @@ int main()
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    static HDC memDC;
-    static HBITMAP hBitmap;
+    static BOX_STATE boxState = NONE;
 
     switch (uMsg)
     {
@@ -83,38 +92,41 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
         return FALSE;
     case WM_MOUSEMOVE: {
-        if (g_mouseBtnDown == true)
+        if (boxState == DRAG)
         {
-            cutImage.m_right = LOWORD(lParam);
-            cutImage.m_bottom = HIWORD(lParam);
-            cutImage.m_state = DRAG;
+            // ¸¶¿ì½ºÀÇ RB ÁÂÇ¥
+            newPos.x = LOWORD(lParam);
+            newPos.y = HIWORD(lParam);
+            SetRect(&box, oldPos.x, oldPos.y, newPos.x, newPos.y);
         }
         InvalidateRect(hwnd, NULL, true);
     }
         return FALSE;
     case WM_LBUTTONDOWN: {
-        if (g_mouseBtnDown == false)
+        if (boxState != DRAG)
         {
-            g_mouseBtnDown = true;
+            boxState = DRAG;
+            // ¸¶¿ì½ºÀÇ LT ÁÂÇ¥
+            oldPos.x = LOWORD(lParam);
+            oldPos.y = HIWORD(lParam);
 
-            cutImage.m_left = LOWORD(lParam);
-            cutImage.m_top = HIWORD(lParam);
+            newPos.x = oldPos.x;
+            newPos.y = newPos.y;
 
-            cutImage.m_right = cutImage.m_left;
-            cutImage.m_bottom = cutImage.m_top;
+            InvalidateRect(hwnd, NULL, true);
         }
-        InvalidateRect(hwnd, NULL, true);
     }
         return FALSE;
     case WM_LBUTTONUP: {
-        if (g_mouseBtnDown == true)
+        if (boxState == DRAG)
         {
-            g_mouseBtnDown = false;
-
-            cutImage.m_right = LOWORD(lParam);
-            cutImage.m_bottom = HIWORD(lParam);
+            boxState = SELECT;
+            // ¸¶¿ì½ºÀÇ RB ÁÂÇ¥
+            newPos.x = LOWORD(lParam);
+            newPos.y = HIWORD(lParam);
+            // ÀÚ¸£±â ÁÂÇ¥ Ã£±â
+            optBox = cutImage.FindCutPosition(oldPos.x, oldPos.y, newPos.x, newPos.y);
         }
-
         InvalidateRect(hwnd, NULL, true);
     }
         return FALSE;
@@ -123,12 +135,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         HDC hdc = BeginPaint(hwnd, &ps);
 
+        // È­¸é Clear
         Rectangle(cutImage.m_hdc, 0, 0, 1280, 780);
 
+        // Image Render
         cutImage.Render();
-
-        if (g_mouseBtnDown)
-            cutImage.MakeBox();
+        
+        // Box Render
+        switch (boxState)
+        {
+        case DRAG: {
+            Box(cutImage.m_hdc, box);
+        }
+        break;
+        case SELECT: {
+            Box(cutImage.m_hdc, optBox);
+        }
+        break;
+        }
+           
 
         BitBlt(hdc, 0, 0, 1280, 780, cutImage.m_hdc, 0, 0, SRCCOPY);
 
@@ -137,4 +162,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return FALSE;
     }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+void Box(HDC hdc, RECT rect)
+{
+    GDIObject obj(hdc);
+    obj.ObjBrush(HOLLOW_BRUSH);
+    Rectangle(hdc, rect.left - 1, rect.top - 1, rect.right + 2, rect.bottom + 2);
+
+     // Rectanlge  Pixel test
+     //COLORREF color = GetPixel(cutImage.m_hdc, rect.right - 1, rect.bottom - 1);
+     //cout << color << endl;
 }
