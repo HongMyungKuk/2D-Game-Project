@@ -28,4 +28,7 @@ class CutImage
     HBITMAP m_hBitmap = NULL;
     Gdiplus::Image *m_pImage = NULL;
     Gdiplus::Graphics *g = NULL;
+
+    UINT m_imageWidth;
+    UINT m_imageHeight;
 };
