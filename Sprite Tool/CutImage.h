@@ -15,6 +15,7 @@ class CutImage
     void Render(int x, int y);
     void LoadPNGImage(HDC hdc);
     RECT FindCutPosition(int left, int top, int right, int bottom);
+    void GetPixelColor(int xPos, int yPos, unsigned char &r, unsigned char &g, unsigned char &b);
 
   private:
     int FindLeftPosition(int left, int top, int right, int bottom);

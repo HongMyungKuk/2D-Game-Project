@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <CommCtrl.h>
 #include <cassert>
 #include <iostream>
 
@@ -25,6 +26,7 @@ void Box(HDC hdc, RECT rect);
 void ScrollProcess(HWND hwnd, int imageWidth, int imageHeight, int &xCurrentScroll, int &yCurrentScroll);
 
 HWND g_hDlg;
+HWND g_hListCtrl;
 RECT g_mainWndSize = {0, 0, 800, 600};
 RECT g_clientSize;
 CutImage cutImage;
@@ -266,8 +268,41 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             newPos.y = HIWORD(lParam);
             // 자르기 좌표 찾기
             optBox = cutImage.FindCutPosition(oldPos.x, oldPos.y, newPos.x, newPos.y);
+            // List Control 에 item 삽입
+            LVCOLUMN col = {};
+            LVITEM lv = {};
+            int idx = ListView_GetItemCount(g_hListCtrl);
+            lv.iItem = idx;
+            lv.mask = LVIF_TEXT;
+            lv.stateMask = 0;
+            lv.iSubItem = 0;
+            wchar_t item[5];
+            wsprintf(item, L"%d", optBox.left);
+            lv.pszText = item;
+            ListView_InsertItem(g_hListCtrl, &lv);
+            wsprintf(item, L"%d", optBox.top);
+            ListView_SetItemText(g_hListCtrl, idx, 1, item);
+            wsprintf(item, L"%d", optBox.right);
+            ListView_SetItemText(g_hListCtrl, idx, 2, item);
+            wsprintf(item, L"%d", optBox.bottom);
+            ListView_SetItemText(g_hListCtrl, idx, 3, item);
         }
         InvalidateRect(hwnd, NULL, true);
+    }
+    break;
+    case WM_RBUTTONDOWN: {
+        {
+            int xMousePos = LOWORD(lParam);
+            int yMousePos = HIWORD(lParam);
+
+            unsigned char r, g, b;
+
+            cutImage.GetPixelColor(xMousePos, yMousePos, r, g, b);
+
+            SetDlgItemInt(g_hDlg, IDC_EDIT4, int(r), true);
+            SetDlgItemInt(g_hDlg, IDC_EDIT5, int(g), true);
+            SetDlgItemInt(g_hDlg, IDC_EDIT6, int(b), true);
+        }
     }
     break;
     case WM_PAINT: {
@@ -327,15 +362,90 @@ LRESULT CALLBACK DlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
-    case WM_INITDIALOG:
+    case WM_INITDIALOG: {
+        wchar_t colName[][3] = {L"x1", L"y1", L"x2", L"y2"};
+        const int colWidth[] = {50, 50, 50, 50};
+
+        g_hListCtrl = GetDlgItem(hwnd, IDC_LIST3);
+        LVCOLUMN col = {};
+        LVITEM li = {};
+
+        col.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
+        col.fmt = LVCFMT_LEFT;
+        for (int i = 0; i < 4; ++i)
+        {
+            col.cx = colWidth[i];
+            col.pszText = colName[i];
+            ListView_InsertColumn(g_hListCtrl, i, &col);
+        }
+        ListView_SetItemCount(g_hListCtrl, 100000000);
+    }
+    break;
+    case WM_COMMAND: {
+        int wmid = LOWORD(wParam);
+        int wmEvent = HIWORD(wParam);
+
+        switch (wmid)
+        {
+        case IDC_BUTTON1: {
+            int idx = ListView_GetNextItem(g_hListCtrl, -1, LVNI_ALL | LVNI_SELECTED);
+            if (idx != -1)
+            {
+                // cutImage 데이터에서도 삭제
+                ListView_DeleteItem(g_hListCtrl, idx);
+            }
+        }
         break;
-    case WM_MOVE:
+        }
+    }
+    break;
+    case WM_NOTIFY: {
+        LPNMHDR hdr = {};
+        LPNMLISTVIEW nlv = {};
+        LPNMITEMACTIVATE nia = {};
+        hdr = (LPNMHDR)lParam;
+        nlv = (LPNMLISTVIEW)lParam;
+
+        // 현재 윈도우가 리스트컨트롤이라면
+        if (hdr->hwndFrom == g_hListCtrl)
+        {
+            switch (hdr->code)
+            {
+            // 아이템이 선택됐을 때
+            case LVN_ITEMCHANGED:
+                if (nlv->uChanged == LVIF_STATE && nlv->uNewState == (LVIS_SELECTED | LVIS_FOCUSED))
+                {
+                    wchar_t x1[5] = L"0";
+                    wchar_t y1[5] = L"0";
+                    wchar_t x2[5] = L"0";
+                    wchar_t y2[5] = L"0";
+
+                    // 3번째 인자(숫자)에 따라 클릭한 Column의 정보를 얻는다.
+                    ListView_GetItemText(g_hListCtrl, nlv->iItem, 0, x1, 5);
+                    ListView_GetItemText(g_hListCtrl, nlv->iItem, 1, y1, 5);
+                    ListView_GetItemText(g_hListCtrl, nlv->iItem, 2, x2, 5);
+                    ListView_GetItemText(g_hListCtrl, nlv->iItem, 2, y2, 5);
+
+                    SetDlgItemText(hwnd, IDC_EDIT7, x1);
+                    SetDlgItemText(hwnd, IDC_EDIT8, y1);
+                    SetDlgItemText(hwnd, IDC_EDIT9, x2);
+                    SetDlgItemText(hwnd, IDC_EDIT10, y2);
+                }
+                break;
+            }
+        }
+    }
+    break;
+    case WM_MOVE: {
+
         SetWindowPos(g_hDlg, NULL, WINDOW_LEFT + g_mainWndSize.right - g_mainWndSize.left - WINDOW_PADDING, WINDOW_LEFT,
                      300, g_mainWndSize.bottom - g_mainWndSize.top, 0);
-        break;
-    case WM_CLOSE:
+    }
+    break;
+    case WM_CLOSE: {
         DestroyWindow(g_hDlg);
-        break;
+    }
+    break;
     }
     return FALSE;
 }

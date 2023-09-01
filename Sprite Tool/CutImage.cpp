@@ -62,6 +62,15 @@ RECT CutImage::FindCutPosition(int left, int top, int right, int bottom)
     return RECT{newLeft, newTop, newRight, newBottom};
 }
 
+ void CutImage::GetPixelColor(int xPos, int yPos, unsigned char &r, unsigned char &g, unsigned char &b)
+{
+    COLORREF rgb = GetPixel(m_hdc, xPos, yPos);
+
+    r = (unsigned char)(rgb >> 16);
+    g = (unsigned char)((rgb & 0x00FF00) >> 8);
+    b = (unsigned char)rgb & 0x0000FF;
+}
+
 int CutImage::FindLeftPosition(int left, int top, int right, int bottom)
 {
     COLORREF startColor = GetPixel(m_hdc, left, top);
